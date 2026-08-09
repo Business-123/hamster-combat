@@ -35,13 +35,14 @@ type Props = {
   onAnimationEnd: (id: number) => void;
   claimMessage: string | null;
   onClaim: (type: DailyType) => void;
-  onGoToCharacters: () => void;
+  onQuickUnlock: () => void;
+  unlocking: boolean;
   onOpenSettings: () => void;
   musicOn: boolean;
   onToggleMusic: () => void;
 };
 
-const MineScreen: React.FC<Props> = ({ state, characters, displayName, onCardClick, clicks, onAnimationEnd, claimMessage, onClaim, onGoToCharacters, onOpenSettings, musicOn, onToggleMusic }) => {
+const MineScreen: React.FC<Props> = ({ state, characters, displayName, onCardClick, clicks, onAnimationEnd, claimMessage, onClaim, onQuickUnlock, unlocking, onOpenSettings, musicOn, onToggleMusic }) => {
   const locked = !state.canEarn;
   const equipped = characters.find((c) => c.id === state.selectedCharacterId) || null;
   const equippedGradient = equipped?.gradient || gradientFor(state.selectedCharacterId);
@@ -149,17 +150,6 @@ const MineScreen: React.FC<Props> = ({ state, characters, displayName, onCardCli
               <div className="px-4 mt-2 text-center text-xs text-[#f3ba2f]">{claimMessage}</div>
             )}
 
-            {locked && (
-              <div className="px-4 mt-3 flex justify-center">
-                <button
-                  onClick={onGoToCharacters}
-                  className="bg-[#f3ba2f] text-black text-xs font-bold rounded-full px-4 py-2"
-                >
-                  🔒 Get a character to start earning
-                </button>
-              </div>
-            )}
-
             <div className="px-4 mt-4 flex justify-center">
               <div className="px-4 py-2 flex items-center space-x-2">
                 <img src={coinIcon} alt="" className="w-10 h-10" />
@@ -178,21 +168,35 @@ const MineScreen: React.FC<Props> = ({ state, characters, displayName, onCardCli
             )}
 
             <div className="px-4 mt-4 flex justify-center pb-8">
-              <div
-                className={`w-80 h-80 p-4 rounded-full circle-outer ${locked ? 'opacity-40 grayscale' : ''}`}
-                style={{
-                  background: equippedGradient,
-                  boxShadow: `0 -26px 40px ${equippedGlow}55`,
-                }}
-                onClick={locked ? onGoToCharacters : onCardClick}
-              >
-                <div className="w-full h-full rounded-full circle-inner overflow-hidden">
-                  <img
-                    src={equippedImage || mainCharacter}
-                    alt="Main Character"
-                    className={equippedImage ? 'w-full h-full object-cover' : 'w-full h-full'}
-                  />
+              <div className="relative">
+                <div
+                  className={`w-80 h-80 p-4 rounded-full circle-outer ${locked ? 'opacity-40 grayscale' : ''}`}
+                  style={{
+                    background: equippedGradient,
+                    boxShadow: `0 -26px 40px ${equippedGlow}55`,
+                  }}
+                  onClick={locked ? onQuickUnlock : onCardClick}
+                >
+                  <div className="w-full h-full rounded-full circle-inner overflow-hidden">
+                    <img
+                      src={equippedImage || mainCharacter}
+                      alt="Main Character"
+                      className={equippedImage ? 'w-full h-full object-cover' : 'w-full h-full'}
+                    />
+                  </div>
                 </div>
+
+                {locked && (
+                  <div className="absolute inset-0 flex items-center justify-center px-8">
+                    <button
+                      onClick={onQuickUnlock}
+                      disabled={unlocking}
+                      className="bg-[#f3ba2f] text-black text-xs font-bold rounded-full px-4 py-2 shadow-lg text-center leading-snug"
+                    >
+                      {unlocking ? '...' : '🔒 Get a character to start earning'}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
-import { fetchState, tap as tapApi, claim as claimApi, fetchCharacters, GameState, Character } from './api';
+import { fetchState, tap as tapApi, claim as claimApi, fetchCharacters, initializeCharacterPurchase, confirmCharacterPurchase, GameState, Character } from './api';
 import { isLoggedIn, restoreSession, logout as logoutApi } from './auth';
 import BottomNav, { Tab } from './components/BottomNav';
 import MineScreen, { DailyType } from './screens/MineScreen';
@@ -24,12 +24,19 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [clicks, setClicks] = useState<{ id: number, x: number, y: number }[]>([]);
   const [claimMessage, setClaimMessage] = useState<string | null>(null);
+  // Mine tab's "🔒 Get a character to start earning" button: buys the
+  // first/cheapest character for real money via the Payment Hub, instead of
+  // sending the player to the Character tab to grind coins.
+  const [unlocking, setUnlocking] = useState(false);
+  const [unlockMessage, setUnlockMessage] = useState<string | null>(null);
   // If the Payment Hub is redirecting back here after a checkout, land on
   // the tab that can actually confirm it: ?taskId=... means a verified task
-  // (Friends tab), a bare ?reference=... means a wallet top-up (Earn tab).
+  // (Friends tab), ?characterId=... means the Mine-tab quick-unlock
+  // purchase, a bare ?reference=... means a wallet top-up (Earn tab).
   const [tab, setTab] = useState<Tab>(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('taskId')) return 'friends';
+    if (params.get('characterId')) return 'mine';
     if (params.get('reference')) return 'earn';
     return 'mine';
   });
@@ -219,6 +226,71 @@ const App: React.FC = () => {
     }
   };
 
+  // Mine tab's lock button: pay for the first/cheapest character with real
+  // money via the Payment Hub instead of grinding coins. Same hub-hosted
+  // Paystack checkout pattern as the other payment flows.
+  const handleQuickUnlock = async () => {
+    if (unlocking || !characters.length) return;
+    const target = characters.find((c) => !c.owned) ?? characters[0];
+    if (!target || target.owned) return;
+    if (!email) {
+      setUnlockMessage('Sign in with an email to buy a character');
+      setTimeout(() => setUnlockMessage(null), 2500);
+      return;
+    }
+    setUnlocking(true);
+    try {
+      const { authorizationUrl, demo, state: updated } = await initializeCharacterPurchase(target.id, email);
+      if (!authorizationUrl) {
+        // DEMO mode: server granted the character immediately, no hub configured.
+        if (updated) setState(updated);
+        setCharacters((prev) => prev.map((c) => (c.id === target.id ? { ...c, owned: true } : c)));
+        setUnlockMessage(demo ? `${target.name} joined your squad (demo payment)!` : `${target.name} joined your squad!`);
+        setUnlocking(false);
+        setTimeout(() => setUnlockMessage(null), 2500);
+        return;
+      }
+      // Full-page redirect to the hub's Paystack checkout. It sends the user
+      // back here (with ?characterId=...&reference=...&status=...) once paid.
+      window.location.href = authorizationUrl;
+    } catch (err) {
+      setUnlockMessage(err instanceof Error ? err.message : 'Could not start this purchase');
+      setUnlocking(false);
+      setTimeout(() => setUnlockMessage(null), 2500);
+    }
+  };
+
+  // After the Payment Hub redirects back here for a quick-unlock purchase,
+  // the URL carries ?characterId=...&reference=...&status=... — confirm
+  // server-side (which re-checks with the hub/Paystack) and grant it.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const characterId = params.get('characterId');
+    const reference = params.get('reference');
+    if (!characterId || !reference) return;
+
+    setUnlocking(true);
+    confirmCharacterPurchase(characterId, reference)
+      .then(({ alreadyProcessed, state: updated }) => {
+        setState(updated);
+        setCharacters((prev) => prev.map((c) => (c.id === characterId ? { ...c, owned: true } : c)));
+        setUnlockMessage(alreadyProcessed ? 'This purchase was already processed.' : 'Payment confirmed — character added!');
+      })
+      .catch((err) => {
+        setUnlockMessage(err instanceof Error ? err.message : 'Could not confirm payment yet — try again shortly.');
+      })
+      .finally(() => {
+        setUnlocking(false);
+        setTimeout(() => setUnlockMessage(null), 3500);
+        params.delete('characterId');
+        params.delete('reference');
+        params.delete('status');
+        const clean = `${window.location.pathname}${params.toString() ? `?${params}` : ''}`;
+        window.history.replaceState({}, '', clean);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (!authChecked) {
     return (
       <div className="bg-black flex justify-center items-center h-screen">
@@ -262,15 +334,16 @@ const App: React.FC = () => {
             onCardClick={handleCardClick}
             clicks={clicks}
             onAnimationEnd={handleAnimationEnd}
-            claimMessage={claimMessage}
+            claimMessage={claimMessage || unlockMessage}
             onClaim={handleClaim}
-            onGoToCharacters={() => setTab('character')}
+            onQuickUnlock={handleQuickUnlock}
+            unlocking={unlocking}
             onOpenSettings={() => setProfileOpen(true)}
             musicOn={musicOn}
             onToggleMusic={handleToggleMusic}
           />
         )}
-        {tab === 'character' && <CharacterScreen state={state} onStateChange={setState} accountEmail={email} />}
+        {tab === 'character' && <CharacterScreen state={state} onStateChange={setState} />}
         {tab === 'friends' && <FriendsScreen state={state} onStateChange={setState} accountEmail={email} />}
         {tab === 'earn' && <EarnScreen state={state} onStateChange={setState} accountEmail={email} />}
         {tab === 'airdrop' && <AirdropScreen state={state} />}
