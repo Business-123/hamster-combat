@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import ScreenHeader from '../components/ScreenHeader';
 import { coinIcon, mainCharacter } from '../images';
-import { fetchCharacters, purchaseCharacter, selectCharacter, Character, GameState } from '../api';
+import {
+  fetchCharacters, purchaseCharacter, selectCharacter, Character, GameState,
+  initializeCharacterPurchase,
+} from '../api';
 import { gradientFor, glowFor } from '../utils/characters';
 import { formatGhs } from '../utils/currency';
 
@@ -15,6 +18,7 @@ const glowColorFor = (c: Character) => c.glow || glowFor(c.id);
 type Props = {
   state: GameState;
   onStateChange: (state: GameState) => void;
+  accountEmail?: string | null;
 };
 
 const BoltIcon = ({ className = '' }: { className?: string }) => (
@@ -23,7 +27,7 @@ const BoltIcon = ({ className = '' }: { className?: string }) => (
   </svg>
 );
 
-const CharacterScreen: React.FC<Props> = ({ state, onStateChange }) => {
+const CharacterScreen: React.FC<Props> = ({ state, onStateChange, accountEmail = null }) => {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -40,11 +44,43 @@ const CharacterScreen: React.FC<Props> = ({ state, onStateChange }) => {
     load();
   }, []);
 
+  // Not enough coins for this character — same Payment Hub checkout as the
+  // Mine tab's quick-unlock button, just for this specific character
+  // instead of always the cheapest one.
+  const buyWithHub = async (character: Character) => {
+    if (!accountEmail) {
+      setMessage('Sign in with an email to pay for a character');
+      setTimeout(() => setMessage(null), 2500);
+      return;
+    }
+    setPendingId(character.id);
+    try {
+      const { authorizationUrl, demo, state: updated } = await initializeCharacterPurchase(character.id, accountEmail);
+      if (!authorizationUrl) {
+        // DEMO mode: server granted the character immediately, no hub configured.
+        if (updated) onStateChange(updated);
+        setCharacters((prev) => prev.map((c) => (c.id === character.id ? { ...c, owned: true } : c)));
+        setMessage(demo ? `${character.name} joined your squad (demo payment)!` : `${character.name} joined your squad!`);
+        setPendingId(null);
+        setTimeout(() => setMessage(null), 2500);
+        return;
+      }
+      // Full-page redirect to the hub's Paystack checkout. It sends the user
+      // back to the app (with ?characterId=...&reference=...&status=...) once paid.
+      window.location.href = authorizationUrl;
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Could not start this purchase');
+      setPendingId(null);
+      setTimeout(() => setMessage(null), 2500);
+    }
+  };
+
   const handleBuy = async (character: Character) => {
     if (character.owned || pendingId) return;
     if (state.points < character.price) {
-      setMessage(`Not enough GH₵ balance for ${character.name}`);
-      setTimeout(() => setMessage(null), 2500);
+      // Not enough coins — pay for it with real money instead, same as the
+      // Mine tab's quick-unlock button.
+      buyWithHub(character);
       return;
     }
     setPendingId(character.id);
