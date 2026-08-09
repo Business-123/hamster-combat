@@ -1303,7 +1303,7 @@ app.get('*', (req, res, next) => {
 
 const PORT = process.env.PORT || process.env.SERVER_PORT || 3001;
 const server = app.listen(PORT, () => {
-  console.log(`Hamster Kombat backend listening on port ${PORT}`);
+  console.log(`Earn Master backend listening on port ${PORT}`);
 });
 
 process.on('SIGTERM', () => {

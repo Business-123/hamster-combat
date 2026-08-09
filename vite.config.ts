@@ -15,9 +15,9 @@ export default defineConfig({
       includeAssets: ['logo.png', 'icons/*.png'],
       manifest: {
         id: '/',
-        name: 'Kombat Hamster',
-        short_name: 'Kombat Hamster',
-        description: 'Tap-to-earn Kombat Hamster — mine coins, complete tasks, and cash out.',
+        name: 'Earn Master',
+        short_name: 'Earn Master',
+        description: 'Tap-to-earn Earn Master — mine coins, complete tasks, and cash out.',
         start_url: '/',
         scope: '/',
         display: 'standalone',

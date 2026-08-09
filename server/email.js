@@ -12,7 +12,7 @@ const SMTP_HOST = process.env.SMTP_HOST || '';
 const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
 const SMTP_USER = process.env.SMTP_USER || '';
 const SMTP_PASS = process.env.SMTP_PASS || '';
-const SMTP_FROM = process.env.SMTP_FROM || 'Kombat Hamster <no-reply@kombathamster.app>';
+const SMTP_FROM = process.env.SMTP_FROM || 'Earn Master <no-reply@earnmaster.app>';
 
 export function emailConfigured() {
   return Boolean(SMTP_HOST && SMTP_USER && SMTP_PASS);
@@ -49,17 +49,17 @@ export async function sendTopUpReceiptEmail({ to, name, amountGhs, coins }) {
   const subject = `You just topped up ${coins.toLocaleString()} coins`;
   const text =
     `${greeting}\n\n` +
-    `Your purchase of ${formatGhs(amountGhs)} for ${coins.toLocaleString()} coins in Kombat Hamster ` +
+    `Your purchase of ${formatGhs(amountGhs)} for ${coins.toLocaleString()} coins in Earn Master ` +
     `was successful and the coins have been added to your account.\n\n` +
     `This receipt was sent automatically to the email address you registered with.\n\n` +
-    `— Kombat Hamster`;
+    `— Earn Master`;
   const html =
     `<p>${greeting}</p>` +
     `<p>Your purchase of <strong>${formatGhs(amountGhs)}</strong> for ` +
-    `<strong>${coins.toLocaleString()} coins</strong> in Kombat Hamster was successful and the coins ` +
+    `<strong>${coins.toLocaleString()} coins</strong> in Earn Master was successful and the coins ` +
     `have been added to your account.</p>` +
     `<p style="color:#85827d;font-size:12px;">This receipt was sent automatically to the email address you registered with.</p>` +
-    `<p>— Kombat Hamster</p>`;
+    `<p>— Earn Master</p>`;
 
   if (!emailConfigured()) {
     console.log(`[email][DEMO] Would send receipt to ${to}: "${subject}"`);
@@ -82,20 +82,20 @@ export async function sendPasswordResetEmail({ to, name, resetUrl }) {
   if (!to) return { sent: false, reason: 'no-recipient' };
 
   const greeting = name ? `Hi ${name},` : 'Hi,';
-  const subject = 'Reset your Kombat Hamster password';
+  const subject = 'Reset your Earn Master password';
   const text =
     `${greeting}\n\n` +
-    `We got a request to reset your Kombat Hamster password. Open this link to choose a new one ` +
+    `We got a request to reset your Earn Master password. Open this link to choose a new one ` +
     `(it expires in 30 minutes):\n\n${resetUrl}\n\n` +
     `If you didn't request this, you can safely ignore this email — your password won't change.\n\n` +
-    `— Kombat Hamster`;
+    `— Earn Master`;
   const html =
     `<p>${greeting}</p>` +
-    `<p>We got a request to reset your Kombat Hamster password. Click below to choose a new one ` +
+    `<p>We got a request to reset your Earn Master password. Click below to choose a new one ` +
     `(this link expires in 30 minutes):</p>` +
     `<p><a href="${resetUrl}">Reset your password</a></p>` +
     `<p style="color:#85827d;font-size:12px;">If you didn't request this, you can safely ignore this email — your password won't change.</p>` +
-    `<p>— Kombat Hamster</p>`;
+    `<p>— Earn Master</p>`;
 
   if (!emailConfigured()) {
     console.log(`[email][DEMO] Would send password reset to ${to}: ${resetUrl}`);

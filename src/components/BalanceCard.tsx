@@ -48,12 +48,12 @@ const BalanceCard: React.FC<Props> = ({ points, pointsPerGhs, userId = '', onWit
         </div>
 
         <p className="text-[13px] tracking-[0.15em] text-[#c9c6c1] mt-4 font-mono">
-          {maskAsCardNumber(userId || 'HAMSTERKOMBAT')}
+          {maskAsCardNumber(userId || 'EARNMASTER')}
         </p>
 
         <div className="flex items-end justify-between mt-4">
           <p className="text-[9px] text-[#85827d]">GH₵ exchange rate updates live from the admin panel.</p>
-          <p className="text-[9px] text-[#85827d] mt-1 text-right">HAMSTER KOMBAT</p>
+          <p className="text-[9px] text-[#85827d] mt-1 text-right">EARN MASTER</p>
         </div>
 
         {onWithdraw && (

@@ -188,7 +188,7 @@ const AuthScreen: React.FC<Props> = ({ onAuthenticated, resetToken }) => {
   const header = (subtitle: string) => (
     <div className="flex flex-col items-center mb-6">
       <div className="mb-4 rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black/60 w-40">
-        <img src={kombatHamsterHero} alt="Kombat Hamster" className="w-full h-full object-cover" />
+        <img src={kombatHamsterHero} alt="Earn Master" className="w-full h-full object-cover" />
       </div>
       <h1 className="relative text-3xl font-extrabold tracking-wide text-center px-4 py-1">
         <span
@@ -199,13 +199,13 @@ const AuthScreen: React.FC<Props> = ({ onAuthenticated, resetToken }) => {
           className="text-white"
           style={{ textShadow: '0 0 14px rgba(0,0,0,0.9), 0 0 28px rgba(0,0,0,0.7), 0 2px 4px rgba(0,0,0,0.9)' }}
         >
-          KOMBAT
+          EARN
         </span>{' '}
         <span
           className="text-[#f3ba2f]"
           style={{ textShadow: '0 0 18px rgba(243,186,47,0.85), 0 2px 4px rgba(0,0,0,0.9)' }}
         >
-          HAMSTER
+          MASTER
         </span>
       </h1>
       <p className="text-xs text-[#c9c6c1] mt-1 text-center">{subtitle}</p>

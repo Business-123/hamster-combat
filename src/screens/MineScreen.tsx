@@ -71,9 +71,9 @@ const MineScreen: React.FC<Props> = ({ state, characters, displayName, onCardCli
       <div className="w-full bg-black text-white flex flex-col max-w-xl">
         <div className="px-4 z-10">
           <div className="flex items-center space-x-2 pt-4">
-            <img src={hamsterCoin} alt="Kombat Hamster" className="w-8 h-8 rounded-full" />
+            <img src={hamsterCoin} alt="Earn Master" className="w-8 h-8 rounded-full" />
             <div>
-              <p className="text-[10px] font-extrabold tracking-wide text-[#f3ba2f] leading-none">KOMBAT HAMSTER</p>
+              <p className="text-[10px] font-extrabold tracking-wide text-[#f3ba2f] leading-none">EARN MASTER</p>
               <p className="text-sm">{displayName ? `${displayName} (CEO)` : 'Guest (CEO)'}</p>
             </div>
           </div>
