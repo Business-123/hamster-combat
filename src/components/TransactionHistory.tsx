@@ -9,6 +9,7 @@ const TYPE_STYLE: Record<Transaction['type'], { icon: string; bg: string }> = {
   withdrawal: { icon: '🏧', bg: 'bg-[#ff7a59]/15' },
   admin: { icon: '⭐', bg: 'bg-[#f3ba2f]/15' },
   unblock: { icon: '🔓', bg: 'bg-[#ff6a3d]/15' },
+  character: { icon: '🐹', bg: 'bg-[#f3ba2f]/15' },
 };
 
 const STATUS_STYLE: Record<Transaction['status'], string> = {

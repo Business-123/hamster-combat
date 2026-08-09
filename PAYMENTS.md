@@ -64,9 +64,33 @@ reference can never be double-credited) lives in the same file as game state,
 at `/data/db.json`. Make sure `/data` is a mounted volume in production — see
 `DATA.md` — or that guard resets on every redeploy/restart.
 
+## Buying a character with real money
+
+Characters can also be bought directly with cash instead of grinding coins.
+This is the same hub-hosted Paystack checkout pattern as the wallet top-up
+and verified-task flows above, just for a character instead of coins:
+
+1. On the Character tab, each unowned character has a secondary "Pay GH₵…"
+   button under the normal coin-price button. The price charged is the
+   character's coin price converted to GHS at the current `pointsPerGhs`
+   rate (`characterPurchaseCostGhs` in `server/game.js`).
+2. `POST /api/characters/:id/purchase/initialize` starts the hub checkout
+   (or, in DEMO mode, grants the character immediately).
+3. After payment, the hub redirects back with `?characterId=...&reference=...`,
+   which `CharacterScreen.tsx` picks up and confirms via
+   `POST /api/characters/:id/purchase/confirm` — re-verified against the hub,
+   never trusting the redirect alone.
+4. The hub's webhook (`POST /webhooks/hub`) also grants the character as a
+   backup, same idempotency guard (`isPaymentProcessed`) as everything else.
+
+This is entirely separate from the in-game coin price — a player can always
+buy a character either by saving up coins or paying cash, whichever they
+prefer.
+
 ## Relevant files
 
 - `server/paymentHub.js` — signs and sends requests to the hub.
-- `server/index.js` — `/api/wallet/topup/initialize`, `/api/wallet/topup/verify`, `/webhooks/hub`.
-- `src/screens/WalletScreen.tsx` — the top-up UI, embedded in the Earn tab.
-- `src/api.ts` — `initializeTopUp`, `verifyTopUp`.
+- `server/index.js` — `/api/wallet/topup/initialize`, `/api/wallet/topup/verify`,
+  `/api/characters/:id/purchase/initialize`, `/api/characters/:id/purchase/confirm`, `/webhooks/hub`.
+- `src/screens/CharacterScreen.tsx` — the character grid, coin-purchase button, and the "Pay GH₵…" card-payment button.
+- `src/api.ts` — `initializeTopUp`, `verifyTopUp`, `initializeCharacterPurchase`, `confirmCharacterPurchase`.

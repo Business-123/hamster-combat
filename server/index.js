@@ -16,6 +16,7 @@ import {
   getTasks, referralBonusReferrer, referralBonusReferee, getCharacters,
   effectiveProfitPerHour, REDEEM_TASK_ID, hasAnyCharacter, coinsForGhs,
   addTransaction, updateTransactionStatus, minWithdrawalGhs, taskVerifyCostGhs,
+  characterPurchaseCostGhs,
   allTasksCompleted, outstandingTaskIds,
   evaluateTapBatch, clearBlock, unblockPriceGhs,
 } from './game.js';
@@ -535,6 +536,18 @@ app.post('/webhooks/hub', (req, res) => {
     }
     saveUser(userId, user);
     markPaymentProcessed(reference, { userId, taskId: task.id, amountGhs: amount, at: Date.now(), via: 'webhook' });
+    return;
+  }
+
+  // Character-purchase payments carry a characterId in metadata — grant the
+  // character instead of the usual coins-per-GHS top-up.
+  if (metadata?.characterId) {
+    const character = getCharacters().find((c) => c.id === metadata.characterId);
+    if (!character) return;
+    let user = loadAccruedUser(userId);
+    user = grantCharacterPurchase(user, character, amount);
+    saveUser(userId, user);
+    markPaymentProcessed(reference, { userId, characterId: character.id, amountGhs: amount, at: Date.now(), via: 'webhook' });
     return;
   }
 
@@ -1119,6 +1132,128 @@ app.post('/api/characters/:id/purchase', requireUserId, (req, res) => {
   };
   saveUser(req.userId, user);
   res.json({ state: publicState(user) });
+});
+
+// Shared by /api/characters/:id/purchase/confirm and the hub webhook: grants
+// ownership of a character bought with real money (auto-equipping it if
+// it's the player's first) and logs the transaction. No-ops if somehow
+// already owned (e.g. the webhook and the confirm call both landed).
+// Idempotency against the *payment reference* itself is handled by callers
+// via isPaymentProcessed/markPaymentProcessed before this runs.
+function grantCharacterPurchase(user, character, amountGhs) {
+  const owned = new Set(user.ownedCharacters ?? []);
+  if (owned.has(character.id)) return user;
+  owned.add(character.id);
+  const ownedCharacters = Array.from(owned);
+  const selectedCharacterId = user.selectedCharacterId ?? character.id;
+  let next = {
+    ...user,
+    ownedCharacters,
+    selectedCharacterId,
+    profitPerHour: effectiveProfitPerHour(ownedCharacters, selectedCharacterId),
+  };
+  next = addTransaction(next, { type: 'character', title: `${character.name} (card payment)`, coins: 0, amountGhs });
+  return next;
+}
+
+// --- Buy a character with real money via the Payment Hub, instead of
+// spending in-game coins. Same Payment-Hub-hosted Paystack checkout pattern
+// as the wallet top-up / task-verification / unblock flows above. The price
+// charged is the character's normal coin price converted to GHS at the
+// current pointsPerGhs rate (see characterPurchaseCostGhs in game.js).
+
+// Step 1: start a hub checkout for this character.
+app.post('/api/characters/:id/purchase/initialize', requireUserId, async (req, res) => {
+  const character = getCharacters().find((c) => c.id === req.params.id);
+  if (!character) {
+    return res.status(404).json({ error: 'Unknown character' });
+  }
+  let user = loadAccruedUser(req.userId);
+  if (user.blocked) {
+    return sendBlocked(req, res, user);
+  }
+  const owned = new Set(user.ownedCharacters ?? []);
+  if (owned.has(character.id)) {
+    saveUser(req.userId, user);
+    return res.status(409).json({ error: 'Already owned', state: publicState(user) });
+  }
+
+  const costGhs = characterPurchaseCostGhs(character);
+  const { email: submittedEmail } = req.body || {};
+  const account = getAccountByUserId(req.userId);
+  const email = account ? account.email : submittedEmail;
+  if (!email || typeof email !== 'string' || !email.includes('@')) {
+    saveUser(req.userId, user);
+    return res.status(400).json({ error: 'A valid email is required to pay via card' });
+  }
+
+  if (!hubConfigured()) {
+    // DEMO mode: skip the hub/Paystack entirely and grant the character
+    // immediately, purely so the flow is testable without live hub credentials.
+    user = grantCharacterPurchase(user, character, costGhs);
+    saveUser(req.userId, user);
+    return res.json({ authorizationUrl: null, reference: null, demo: true, state: publicState(user) });
+  }
+
+  saveUser(req.userId, user);
+  if (!APP_PUBLIC_URL) {
+    return res.status(500).json({ error: 'Server misconfigured: APP_PUBLIC_URL is not set' });
+  }
+
+  try {
+    // Carry the character id through the redirect so the frontend knows
+    // which purchase to confirm once the hub sends the browser back here.
+    const redirectUrl = `${APP_PUBLIC_URL}/?characterId=${encodeURIComponent(character.id)}`;
+    const { reference, authorizationUrl } = await initializeTransaction({
+      email,
+      amountGhs: costGhs,
+      redirectUrl,
+      metadata: { userId: req.userId, characterId: character.id },
+    });
+    res.json({ authorizationUrl, reference });
+  } catch (err) {
+    res.status(502).json({ error: err.message || 'Could not start this purchase' });
+  }
+});
+
+// Step 2: once the hub redirects back with ?reference=..., confirm and grant
+// the character. Always re-verified against the hub/Paystack — never trust
+// the redirect alone.
+app.post('/api/characters/:id/purchase/confirm', requireUserId, async (req, res) => {
+  const character = getCharacters().find((c) => c.id === req.params.id);
+  if (!character) {
+    return res.status(404).json({ error: 'Unknown character' });
+  }
+  const { reference } = req.body || {};
+  if (!reference || typeof reference !== 'string') {
+    return res.status(400).json({ error: 'Missing payment reference' });
+  }
+  if (isPaymentProcessed(reference)) {
+    const user = loadAccruedUser(req.userId);
+    saveUser(req.userId, user);
+    return res.json({
+      owned: (user.ownedCharacters ?? []).includes(character.id),
+      alreadyProcessed: true,
+      state: publicState(user),
+    });
+  }
+
+  try {
+    const txn = await verifyTransaction(reference);
+    if (txn.status !== 'SUCCESS') {
+      return res.status(402).json({ error: `Payment status: ${txn.status}` });
+    }
+    if (String(txn.currency || '').toUpperCase() !== 'GHS') {
+      return res.status(400).json({ error: 'Unexpected payment currency' });
+    }
+    let user = loadAccruedUser(req.userId);
+    user = grantCharacterPurchase(user, character, txn.amount);
+    saveUser(req.userId, user);
+    markPaymentProcessed(reference, { userId: req.userId, characterId: character.id, amountGhs: txn.amount, at: Date.now() });
+    res.json({ owned: true, state: publicState(user) });
+  } catch (err) {
+    res.status(502).json({ error: err.message || 'Could not verify this payment yet — try again shortly' });
+  }
 });
 
 // Equip an owned character. This is what changes the hamster shown on the

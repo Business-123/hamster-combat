@@ -35,7 +35,7 @@ export type GameState = {
 
 export type Transaction = {
   id: string;
-  type: 'task' | 'daily' | 'referral' | 'topup' | 'withdrawal' | 'admin' | 'unblock';
+  type: 'task' | 'daily' | 'referral' | 'topup' | 'withdrawal' | 'admin' | 'unblock' | 'character';
   title: string;
   coins: number; // signed: positive = credit, negative = debit
   amountGhs: number | null;
@@ -160,6 +160,31 @@ export function fetchCharacters(): Promise<{ characters: Character[]; selectedCh
 
 export function purchaseCharacter(id: string): Promise<{ state: GameState }> {
   return authedFetch(`/api/characters/${id}/purchase`, { method: 'POST' });
+}
+
+// Buy a character with real money via the Payment Hub instead of in-game
+// coins — same hub-hosted Paystack checkout pattern as initializeTopUp /
+// initializeTaskVerification.
+// Step 1: start the checkout. authorizationUrl is null in DEMO mode (no hub
+// configured), in which case the character is granted immediately.
+export function initializeCharacterPurchase(
+  id: string,
+  email?: string
+): Promise<{ authorizationUrl: string | null; reference: string | null; demo?: boolean; state?: GameState }> {
+  return authedFetch(`/api/characters/${id}/purchase/initialize`, {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+// Step 2: after the hub redirects back with ?reference=..., confirm and
+// grant the character. The server re-verifies with the hub — never trust
+// the redirect alone.
+export function confirmCharacterPurchase(id: string, reference: string): Promise<{ owned: boolean; alreadyProcessed?: boolean; state: GameState }> {
+  return authedFetch(`/api/characters/${id}/purchase/confirm`, {
+    method: 'POST',
+    body: JSON.stringify({ reference }),
+  });
 }
 
 export function selectCharacter(id: string): Promise<{ state: GameState }> {

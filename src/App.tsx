@@ -270,7 +270,7 @@ const App: React.FC = () => {
             onToggleMusic={handleToggleMusic}
           />
         )}
-        {tab === 'character' && <CharacterScreen state={state} onStateChange={setState} />}
+        {tab === 'character' && <CharacterScreen state={state} onStateChange={setState} accountEmail={email} />}
         {tab === 'friends' && <FriendsScreen state={state} onStateChange={setState} accountEmail={email} />}
         {tab === 'earn' && <EarnScreen state={state} onStateChange={setState} accountEmail={email} />}
         {tab === 'airdrop' && <AirdropScreen state={state} />}

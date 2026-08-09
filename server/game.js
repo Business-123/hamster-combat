@@ -190,6 +190,14 @@ export function ghsForCoins(coins) {
   return Number(coins) / pointsPerGhs();
 }
 
+// Real-money price to buy a character via the Payment Hub instead of
+// grinding coins — the same value as the character's coin price, just
+// converted at the current pointsPerGhs exchange rate and rounded to cents.
+export function characterPurchaseCostGhs(character) {
+  const ghs = ghsForCoins(character?.price ?? 0);
+  return Math.round(ghs * 100) / 100;
+}
+
 // --- Wallet: cash-out coins back to GHS ---
 // This is a real, admin-reviewed withdrawal flow, not an automated payout:
 // a request debits the user's coins immediately and sits as 'pending' until
