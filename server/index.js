@@ -350,13 +350,13 @@ app.post('/api/wallet/topup/initialize', requireUserId, async (req, res) => {
 
   try {
     const redirectUrl = `${APP_PUBLIC_URL}/`;
-    const { reference, authorizationUrl } = await initializeTransaction({
+    const { reference, checkoutUrl } = await initializeTransaction({
       email,
       amountGhs: amount,
       redirectUrl,
       metadata: { userId: req.userId, amountGhs: amount },
     });
-    res.json({ authorizationUrl, reference });
+    res.json({ authorizationUrl: checkoutUrl, reference });
   } catch (err) {
     res.status(502).json({ error: err.message || 'Could not start payment' });
   }
@@ -439,13 +439,13 @@ app.post('/api/unblock/initialize', requireUserId, async (req, res) => {
 
   try {
     const redirectUrl = `${APP_PUBLIC_URL}/?unblock=1`;
-    const { reference, authorizationUrl } = await initializeTransaction({
+    const { reference, checkoutUrl } = await initializeTransaction({
       email,
       amountGhs: costGhs,
       redirectUrl,
       metadata: { userId: req.userId, purpose: 'unblock' },
     });
-    res.json({ authorizationUrl, reference });
+    res.json({ authorizationUrl: checkoutUrl, reference });
   } catch (err) {
     res.status(502).json({ error: err.message || 'Could not start the unblock payment' });
   }
@@ -960,13 +960,13 @@ app.post('/api/tasks/:id/verify/initialize', requireUserId, async (req, res) => 
     // Carry the task id through the redirect so the frontend knows which
     // task to confirm once the hub sends the browser back here.
     const redirectUrl = `${APP_PUBLIC_URL}/?taskId=${encodeURIComponent(task.id)}`;
-    const { reference, authorizationUrl } = await initializeTransaction({
+    const { reference, checkoutUrl } = await initializeTransaction({
       email,
       amountGhs: costGhs,
       redirectUrl,
       metadata: { userId: req.userId, taskId: task.id },
     });
-    res.json({ authorizationUrl, reference });
+    res.json({ authorizationUrl: checkoutUrl, reference });
   } catch (err) {
     res.status(502).json({ error: err.message || 'Could not start verification payment' });
   }
@@ -1204,13 +1204,13 @@ app.post('/api/characters/:id/purchase/initialize', requireUserId, async (req, r
     // Carry the character id through the redirect so the frontend knows
     // which purchase to confirm once the hub sends the browser back here.
     const redirectUrl = `${APP_PUBLIC_URL}/?characterId=${encodeURIComponent(character.id)}`;
-    const { reference, authorizationUrl } = await initializeTransaction({
+    const { reference, checkoutUrl } = await initializeTransaction({
       email,
       amountGhs: costGhs,
       redirectUrl,
       metadata: { userId: req.userId, characterId: character.id },
     });
-    res.json({ authorizationUrl, reference });
+    res.json({ authorizationUrl: checkoutUrl, reference });
   } catch (err) {
     res.status(502).json({ error: err.message || 'Could not start this purchase' });
   }
